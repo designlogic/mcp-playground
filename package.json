@@ -1,18 +1,19 @@
 {
   "name": "mcp-playground",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "calculator": "./build/index.js"
+    "calculator": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
-    "start": "node build/index.js",
-    "dev": "tsx watch src/index.ts"
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "example": "tsx src/example.ts"
   },
   "files": [
-    "build"
+    "dist"
   ],
   "keywords": [
     "mcp",
@@ -23,7 +24,7 @@
   "description": "An MCP server implementation",
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "tsx": "^4.7.1",
+    "tsx": "^4.19.3",
     "typescript": "^5.7.2"
   },
   "dependencies": {
