@@ -7,6 +7,7 @@ import {
     Stack,
     Container,
     useToast,
+    Text,
 } from '@chakra-ui/react';
 import { FaPaperPlane } from 'react-icons/fa';
 import { ChatMessage } from './ChatMessage';
@@ -71,53 +72,56 @@ export const ChatInterface = () => {
     };
 
     return (
-        <Container maxW="container.md" py={8}>
-            <Box
-                bg="white"
-                borderRadius="xl"
-                boxShadow="lg"
-                overflow="hidden"
-                h="600px"
-                display="flex"
-                flexDirection="column"
-            >
-                <Box flex="1" overflowY="auto" p={4}>
-                    <Stack direction="column" spacing={4}>
-                        {messages.map((msg, idx) => (
-                            <ChatMessage
-                                key={idx}
-                                message={msg.text}
-                                isUser={msg.isUser}
-                            />
-                        ))}
-                        <div ref={messagesEndRef} />
-                    </Stack>
-                </Box>
+        <>
+            <Container maxW="container.md" py={8}>
+                <Box
+                    bg="white"
+                    borderRadius="xl"
+                    boxShadow="lg"
+                    overflow="hidden"
+                    h="600px"
+                    display="flex"
+                    flexDirection="column"
+                >
+                    <Box flex="1" overflowY="auto" p={4}>
+                        <Stack direction="column" spacing={4}>
+                            {messages.map((msg, idx) => (
+                                <ChatMessage
+                                    key={idx}
+                                    message={msg.text}
+                                    isUser={msg.isUser}
+                                />
+                            ))}
+                            <div ref={messagesEndRef} />
+                        </Stack>
+                    </Box>
 
-                <Box p={4} borderTop="1px" borderColor="gray.200">
-                    <form onSubmit={handleSubmit}>
-                        <Flex gap={2}>
-                            <Input
-                                ref={inputRef}
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Type your message..."
-                                size="lg"
-                                disabled={isLoading}
-                            />
-                            <IconButton
-                                colorScheme="blue"
-                                aria-label="Send message"
-                                icon={<FaPaperPlane />}
-                                size="lg"
-                                type="submit"
-                                isLoading={isLoading}
-                                variant="solid"
-                            />
-                        </Flex>
-                    </form>
+                    <Box p={4} borderTop="1px" borderColor="gray.200">
+                        <form onSubmit={handleSubmit}>
+                            <Flex gap={2}>
+                                <Input
+                                    ref={inputRef}
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Type your message..."
+                                    size="lg"
+                                    disabled={isLoading}
+                                />
+                                <IconButton
+                                    colorScheme="blue"
+                                    aria-label="Send message"
+                                    icon={<FaPaperPlane />}
+                                    size="lg"
+                                    type="submit"
+                                    isLoading={isLoading}
+                                    variant="solid"
+                                />
+                            </Flex>
+                        </form>
+                    </Box>
                 </Box>
-            </Box>
-        </Container>
+                <Text mt={4} textAlign="center">hello</Text>
+            </Container>
+        </>
     );
 }; 
