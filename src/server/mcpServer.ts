@@ -25,6 +25,21 @@ const DeliverySchema = z.object({
 type PizzaOrder = z.infer<typeof PizzaOrderSchema>;
 type DeliveryRequest = z.infer<typeof DeliverySchema>;
 
+// Helper function to format timestamps
+function getTimestamp(): string {
+    return new Date().toISOString();
+}
+
+// Helper function to log MCP interactions
+function logMCPInteraction(tool: string, params: any, result: any) {
+    console.error('\n=== MCP Interaction Log ===');
+    console.error(`Timestamp: ${getTimestamp()}`);
+    console.error(`Tool: ${tool}`);
+    console.error('Parameters:', JSON.stringify(params, null, 2));
+    console.error('Result:', JSON.stringify(result, null, 2));
+    console.error('========================\n');
+}
+
 export async function startMCPServer() {
     const server = new MCPServer();
 
@@ -71,6 +86,7 @@ export async function startMCPServer() {
                     }
                 }
             ];
+            logMCPInteraction('_list_tools', {}, tools);
             return tools;
         }
     });
@@ -81,10 +97,12 @@ export async function startMCPServer() {
         parameters: PizzaOrderSchema,
         handler: async (params: PizzaOrder) => {
             const orderId = Math.random().toString(36).substring(7);
-            return {
+            const result = {
                 orderId,
                 message: `Started new pizza order #${orderId} with size: ${params.size}, crust: ${params.crust}, sauce: ${params.sauce}`,
             };
+            logMCPInteraction('startNewPizzaOrder', params, result);
+            return result;
         },
     });
 
@@ -99,9 +117,11 @@ export async function startMCPServer() {
         description: 'Add toppings to an existing pizza order',
         parameters: AddToppingsSchema,
         handler: async (params: AddToppingsParams) => {
-            return {
+            const result = {
                 message: `Added toppings ${params.toppings.join(', ')} to order #${params.orderId}`,
             };
+            logMCPInteraction('addToppings', params, result);
+            return result;
         },
     });
 
@@ -115,9 +135,11 @@ export async function startMCPServer() {
                 `${params.address.city}, ${params.address.state} ${params.address.zipCode}`
             ].filter(Boolean).join(', ');
             
-            return {
+            const result = {
                 message: `Delivery scheduled for order #${params.orderId} to: ${fullAddress}${params.instructions ? `\nDelivery instructions: ${params.instructions}` : ''}`
             };
+            logMCPInteraction('deliverOrder', params, result);
+            return result;
         },
     });
 
