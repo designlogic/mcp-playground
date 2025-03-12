@@ -12,9 +12,9 @@
     "test": "echo \"No tests specified\" && exit 0",
     "dev": "tsc -w",
     "example": "tsx src/example.ts",
+    "start:mcp": "node dist/server/mcpServer.js",
     "start:api": "node dist/server/api.js",
-    "dev:api": "tsc -w & node dist/server/api.js",
-    "start:mcp": "node dist/server/mcpServer.js"
+    "start:all": "npm run build && concurrently \"npm run start:mcp\" \"sleep 2 && npm run start:api\""
   },
   "files": [
     "dist"
@@ -30,6 +30,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.10",
+    "concurrently": "^9.1.2",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   },

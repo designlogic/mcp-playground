@@ -1,6 +1,6 @@
-import { spawn, ChildProcess } from 'child_process';
-import { z } from 'zod';
 import { createInterface } from 'readline';
+import { Socket } from 'net';
+import { z } from 'zod';
 
 export interface MCPTool {
     name: string;
@@ -22,44 +22,35 @@ export interface MCPToolDefinition<T> {
 }
 
 export class MCPClient {
-    private serverProcess?: ChildProcess;
+    private socket: Socket;
     private responseBuffer: string = '';
     private responseResolve?: (value: MCPToolResponse) => void;
 
-    constructor() {}
+    constructor() {
+        this.socket = new Socket();
+    }
 
     async connect(): Promise<void> {
-        // Start the MCP server process
-        this.serverProcess = spawn('node', ['dist/server/index.js'], {
-            stdio: ['pipe', 'pipe', 'pipe']
-        });
-
-        // Handle server output
-        this.serverProcess.stdout?.on('data', (data) => {
-            const output = data.toString();
-            console.log('Server output:', output);
-            this.handleServerOutput(output);
-        });
-
-        this.serverProcess.stderr?.on('data', (data) => {
-            console.error('Server error:', data.toString());
-        });
-
-        // Wait for server to start
-        await new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
             const timeout = setTimeout(() => {
-                reject(new Error('Server startup timeout'));
-            }, 10000);
+                reject(new Error('Server connection timeout'));
+            }, 5000);
 
-            const handler = (data: Buffer) => {
+            this.socket.connect(3002, 'localhost', () => {
+                clearTimeout(timeout);
+                console.log('Connected to MCP server');
+                resolve();
+            });
+
+            this.socket.on('data', (data) => {
                 const output = data.toString();
-                if (output.includes('Server started with tools:')) {
-                    clearTimeout(timeout);
-                    this.serverProcess?.stderr?.removeListener('data', handler);
-                    resolve();
-                }
-            };
-            this.serverProcess?.stderr?.on('data', handler);
+                this.handleServerOutput(output);
+            });
+
+            this.socket.on('error', (error) => {
+                console.error('Socket error:', error);
+                reject(error);
+            });
         });
     }
 
@@ -78,9 +69,7 @@ export class MCPClient {
     }
 
     async disconnect(): Promise<void> {
-        if (this.serverProcess) {
-            this.serverProcess.kill();
-        }
+        this.socket.end();
     }
 
     async listTools(): Promise<MCPTool[]> {
@@ -95,22 +84,13 @@ export class MCPClient {
     }
 
     async invokeTool(toolName: string, params: Record<string, any>): Promise<MCPToolResponse> {
-        if (!this.serverProcess) {
-            throw new Error("Not connected to server");
-        }
-
         return new Promise<MCPToolResponse>((resolve, reject) => {
-            // Set up response handler
             this.responseResolve = resolve;
-
-            // Clear response buffer
             this.responseBuffer = '';
 
-            // Send command to server
             const command = JSON.stringify({ tool: toolName, params });
-            this.serverProcess?.stdin?.write(command + '\n');
+            this.socket.write(command + '\n');
 
-            // Set timeout
             setTimeout(() => {
                 if (this.responseResolve) {
                     this.responseResolve = undefined;
@@ -123,12 +103,24 @@ export class MCPClient {
 
 export class MCPServer {
     private tools: Map<string, MCPToolDefinition<any>> = new Map();
-    private readline: ReturnType<typeof createInterface>;
+    private server: any;
 
     constructor() {
-        this.readline = createInterface({
-            input: process.stdin,
-            output: process.stdout,
+        const net = require('net');
+        this.server = net.createServer((socket: Socket) => {
+            console.log('Client connected');
+            
+            const rl = createInterface({
+                input: socket,
+                output: socket,
+            });
+
+            rl.on('line', (line) => this.handleCommand(line, socket));
+            
+            socket.on('end', () => {
+                console.log('Client disconnected');
+                rl.close();
+            });
         });
     }
 
@@ -136,7 +128,7 @@ export class MCPServer {
         this.tools.set(name, definition);
     }
 
-    private async handleCommand(line: string) {
+    private async handleCommand(line: string, socket: Socket) {
         try {
             const command = JSON.parse(line);
             const tool = this.tools.get(command.tool);
@@ -148,16 +140,14 @@ export class MCPServer {
                         text: `Error: Tool ${command.tool} not found`
                     }]
                 };
-                console.log(JSON.stringify(response));
+                socket.write(JSON.stringify(response) + '\n');
                 return;
             }
 
             try {
-                // Validate parameters using Zod schema
                 const params = tool.parameters.parse(command.params);
                 const result = await tool.handler(params);
                 
-                // Format response
                 const response: MCPToolResponse = {
                     content: [{
                         type: 'text',
@@ -165,7 +155,7 @@ export class MCPServer {
                     }]
                 };
                 
-                console.log(JSON.stringify(response));
+                socket.write(JSON.stringify(response) + '\n');
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
                 console.error('Error handling command:', errorMessage);
@@ -175,7 +165,7 @@ export class MCPServer {
                         text: `Error: ${errorMessage}`
                     }]
                 };
-                console.log(JSON.stringify(response));
+                socket.write(JSON.stringify(response) + '\n');
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Invalid command format';
@@ -186,22 +176,26 @@ export class MCPServer {
                     text: `Error: ${errorMessage}`
                 }]
             };
-            console.log(JSON.stringify(response));
+            socket.write(JSON.stringify(response) + '\n');
         }
     }
 
-    async start() {
-        // Log available tools
-        console.error('Server started with tools:', Array.from(this.tools.keys()));
-        
-        // Handle incoming commands
-        this.readline.on('line', (line) => this.handleCommand(line));
-        
-        // Keep the process running
-        await new Promise(() => {});
+    async start(port: number = 3002) {
+        return new Promise<void>((resolve) => {
+            this.server.listen(port, () => {
+                console.log(`MCP Server listening on port ${port}`);
+                console.error('Server started with tools:', Array.from(this.tools.keys()));
+                resolve();
+            });
+        });
     }
 
     async stop() {
-        this.readline.close();
+        return new Promise<void>((resolve) => {
+            this.server.close(() => {
+                console.log('MCP Server stopped');
+                resolve();
+            });
+        });
     }
 } 
