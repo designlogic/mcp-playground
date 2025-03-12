@@ -8,8 +8,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts",
+    "start": "node dist/server/index.js",
+    "test": "node dist/tests/pizzaAgent.test.js",
+    "dev": "tsc -w",
     "example": "tsx src/example.ts"
   },
   "files": [
@@ -23,15 +24,15 @@
   "license": "ISC",
   "description": "An MCP server implementation",
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^22.13.10",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.2"
+    "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@langchain/openai": "^0.4.4",
-    "@modelcontextprotocol/sdk": "^1.4.0",
+    "@modelcontextprotocol/sdk": "^1.7.0",
     "@types/dotenv": "^6.1.1",
     "dotenv": "^16.4.7",
+    "openai": "^4.87.3",
     "zod": "^3.24.2"
   }
 }
