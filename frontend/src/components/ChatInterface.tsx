@@ -32,13 +32,20 @@ export const ChatInterface = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    const focusInput = () => {
+        // Small delay to ensure focus happens after state updates
+        setTimeout(() => {
+            inputRef.current?.focus();
+        }, 50);
+    };
+
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
 
     // Focus input on initial load
     useEffect(() => {
-        inputRef.current?.focus();
+        focusInput();
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -66,10 +73,22 @@ export const ChatInterface = () => {
             });
         } finally {
             setIsLoading(false);
-            // Focus input after response is received
-            inputRef.current?.focus();
+            focusInput();
         }
     };
+
+    // Handle keyboard events
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // If Escape is pressed, focus the input
+            if (e.key === 'Escape') {
+                focusInput();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     return (
         <>
