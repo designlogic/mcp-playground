@@ -14,6 +14,7 @@
     "@chakra-ui/theme": "^3.4.6",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@langchain/community": "^0.3.34",
     "framer-motion": "^11.18.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
