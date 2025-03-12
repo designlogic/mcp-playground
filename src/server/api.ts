@@ -1,32 +1,24 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
-import { config } from 'dotenv';
+import dotenv from 'dotenv';
 import { ChatAgent } from '../client/chatAgent.js';
 
 // Load environment variables
-config();
+dotenv.config();
 
 const app = express();
-const router = express.Router();
-
 app.use(cors());
 app.use(express.json());
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-if (!OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is not set');
-}
+const port = process.env.PORT || 3001;
 
-interface ChatRequest {
-    message: string;
-}
+// Initialize chat agent
+const chatAgent = new ChatAgent();
 
-// Create a single instance of ChatAgent
-const chatAgent = new ChatAgent(OPENAI_API_KEY);
-
-const handleChat = async (req: express.Request, res: express.Response) => {
+// Chat endpoint
+app.post('/api/chat', express.json(), async (req: Request, res: Response): Promise<void> => {
     try {
-        const { message } = req.body as ChatRequest;
+        const { message } = req.body;
         if (!message) {
             res.status(400).json({ error: 'Message is required' });
             return;
@@ -35,20 +27,26 @@ const handleChat = async (req: express.Request, res: express.Response) => {
         const response = await chatAgent.chat(message);
         res.json({ response });
     } catch (error) {
-        console.error('Error processing chat request:', error);
+        console.error('Error in chat endpoint:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
-};
+});
 
-router.post('/chat', handleChat);
-app.use('/api', router);
-
-const PORT = process.env.PORT || 3001;
+// Clear chat history endpoint
+app.post('/api/clear', express.json(), async (req: Request, res: Response): Promise<void> => {
+    try {
+        await chatAgent.clearHistory();
+        res.json({ message: 'Chat history cleared' });
+    } catch (error) {
+        console.error('Error clearing chat history:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 export const startServer = async () => {
     return new Promise<void>((resolve) => {
-        app.listen(PORT, () => {
-            console.log(`API server running on port ${PORT}`);
+        app.listen(port, () => {
+            console.log(`Server is running on port ${port}`);
             resolve();
         });
     });
@@ -56,7 +54,5 @@ export const startServer = async () => {
 
 // Start the server if this file is run directly
 if (import.meta.url === new URL(import.meta.url).href) {
-    app.listen(PORT, () => {
-        console.log(`API server running on port ${PORT}`);
-    });
+    startServer();
 } 
