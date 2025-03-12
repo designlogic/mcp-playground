@@ -1,5 +1,5 @@
 import { createInterface } from 'readline';
-import { Socket } from 'net';
+import { Socket, createServer, Server } from 'net';
 import { z } from 'zod';
 
 export interface MCPTool {
@@ -103,11 +103,10 @@ export class MCPClient {
 
 export class MCPServer {
     private tools: Map<string, MCPToolDefinition<any>> = new Map();
-    private server: any;
+    private server: Server;
 
     constructor() {
-        const net = require('net');
-        this.server = net.createServer((socket: Socket) => {
+        this.server = createServer((socket: Socket) => {
             console.log('Client connected');
             
             const rl = createInterface({

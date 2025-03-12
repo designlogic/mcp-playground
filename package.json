@@ -14,7 +14,7 @@
     "example": "tsx src/example.ts",
     "start:mcp": "node dist/server/mcpServer.js",
     "start:api": "node dist/server/api.js",
-    "start:all": "npm run build && concurrently \"npm run start:mcp\" \"sleep 2 && npm run start:api\""
+    "start:all": "npm run build && concurrently \"npm run start:mcp\" \"sleep 5 && npm run start:api\""
   },
   "files": [
     "dist"
