@@ -1,51 +1,25 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ListToolsRequestSchema, CallToolRequestSchema } from "@modelcontextprotocol/sdk/server/schema.js";
+import { z } from "zod";
 
-// Create a new MCP server instance
-const server = new Server({
-  name: "example-server",
-  version: "1.0.0"
-}, {
-  capabilities: {
-    tools: {}
-  }
+// Create server instance
+const server = new McpServer({
+  name: "calculator",
+  version: "1.0.0",
 });
 
-// Define a simple calculator tool
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [{
-      name: "calculate",
-      description: "Perform basic arithmetic operations",
-      inputSchema: {
-        type: "object",
-        properties: {
-          operation: { 
-            type: "string",
-            enum: ["add", "subtract", "multiply", "divide"]
-          },
-          a: { type: "number" },
-          b: { type: "number" }
-        },
-        required: ["operation", "a", "b"]
-      }
-    }]
-  };
-});
-
-// Handle tool execution
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-  
-  if (name === "calculate") {
-    const { operation, a, b } = args as { 
-      operation: "add" | "subtract" | "multiply" | "divide";
-      a: number;
-      b: number;
-    };
+// Register calculator tool
+server.tool(
+  "calculate",
+  "Perform basic arithmetic operations",
+  {
+    operation: z.enum(["add", "subtract", "multiply", "divide"]).describe("The arithmetic operation to perform"),
+    a: z.number().describe("First number"),
+    b: z.number().describe("Second number"),
+  },
+  async ({ operation, a, b }) => {
+    let result: number;
     
-    let result;
     switch (operation) {
       case "add":
         result = a + b;
@@ -57,32 +31,48 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = a * b;
         break;
       case "divide":
-        if (b === 0) throw new Error("Division by zero");
+        if (b === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "Error: Division by zero is not allowed",
+              },
+            ],
+          };
+        }
         result = a / b;
         break;
       default:
-        throw new Error("Invalid operation");
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Error: Invalid operation",
+            },
+          ],
+        };
     }
 
     return {
-      toolResult: result
+      content: [
+        {
+          type: "text",
+          text: `Result of ${operation}(${a}, ${b}) = ${result}`,
+        },
+      ],
     };
-  }
-  throw new Error("Tool not found");
-});
-
-// Connect using stdio transport
-const transport = new StdioServerTransport();
+  },
+);
 
 // Start the server
 async function main() {
-  try {
-    await server.connect(transport);
-    console.log("MCP Server started successfully");
-  } catch (error) {
-    console.error("Failed to start MCP server:", error);
-    process.exit(1);
-  }
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("Calculator MCP Server running on stdio");
 }
 
-main(); 
+main().catch((error) => {
+  console.error("Fatal error in main():", error);
+  process.exit(1);
+}); 

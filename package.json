@@ -1,30 +1,29 @@
 {
   "name": "mcp-playground",
   "version": "1.0.0",
-  "description": "An MCP server implementation",
+  "main": "index.js",
   "type": "module",
-  "main": "dist/index.js",
+  "bin": {
+    "calculator": "./build/index.js"
+  },
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node --esm src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "start": "node build/index.js",
+    "dev": "tsx watch src/index.ts"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/designlogic/mcp-playground.git"
-  },
+  "files": [
+    "build"
+  ],
   "keywords": ["mcp", "server"],
   "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/designlogic/mcp-playground/issues"
+  "description": "An MCP server implementation",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "tsx": "^4.7.1"
   },
-  "homepage": "https://github.com/designlogic/mcp-playground#readme",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^0.1.0",
-    "@types/node": "^20.0.0",
-    "ts-node": "^10.9.0",
-    "typescript": "^5.0.0"
+    "@modelcontextprotocol/sdk": "^1.4.0"
   }
-}
+} 
