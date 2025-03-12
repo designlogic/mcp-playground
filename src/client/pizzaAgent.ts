@@ -58,7 +58,16 @@ export class PizzaAgent {
                                },
                                "instructions": "delivery-instructions" (optional)
                              }
-                        5. If an action cannot be performed, respond with a JSON object: { "error": "Specific reason why the action cannot be performed" }
+                        5. For removing toppings:
+                           - Extract the order ID from the request
+                           - Identify the toppings to remove
+                           - Respond with a JSON object:
+                             {
+                               "action": "removeToppings",
+                               "orderId": "the-order-id",
+                               "toppings": ["topping1", "topping2"]
+                             }
+                        6. If an action cannot be performed, respond with a JSON object: { "error": "Specific reason why the action cannot be performed" }
 
                         Available MCP tools:
                         ${toolsDescription}
@@ -84,6 +93,14 @@ export class PizzaAgent {
                                 "state": "CA",
                                 "zipCode": "94105"
                             }
+                        }
+
+                        3. Remove toppings request:
+                        User: "Remove mushrooms and olives from order #abc123"
+                        Response: {
+                            "action": "removeToppings",
+                            "orderId": "abc123",
+                            "toppings": ["mushrooms", "olives"]
                         }
 
                         Remember: 
@@ -120,13 +137,18 @@ export class PizzaAgent {
             const orderResult = await this.submitOrder(result);
             
             // Check if we need to add toppings
-            if (userRequest.toLowerCase().includes('pepperoni') || userRequest.toLowerCase().includes('cheese')) {
+            if (userRequest.toLowerCase().includes('pepperoni') || 
+                userRequest.toLowerCase().includes('cheese') ||
+                userRequest.toLowerCase().includes('mushrooms') ||
+                userRequest.toLowerCase().includes('olives')) {
                 const orderIdMatch = orderResult.match(/order #([a-z0-9]+)/i);
                 if (orderIdMatch) {
                     const orderId = orderIdMatch[1];
                     const toppings = [];
                     if (userRequest.toLowerCase().includes('pepperoni')) toppings.push('pepperoni');
                     if (userRequest.toLowerCase().includes('cheese')) toppings.push('extra cheese');
+                    if (userRequest.toLowerCase().includes('mushrooms')) toppings.push('mushrooms');
+                    if (userRequest.toLowerCase().includes('olives')) toppings.push('olives');
                     
                     await this.mcpClient.invokeTool("addToppings", {
                         orderId,
@@ -143,6 +165,18 @@ export class PizzaAgent {
                 return deliveryResult.content[0].text;
             } catch (error) {
                 console.error("Failed to submit delivery request:", error);
+                throw error;
+            }
+        } else if (result.action === "removeToppings" && result.orderId && result.toppings) {
+            // This is a remove toppings request
+            try {
+                const removeResult = await this.mcpClient.invokeTool("removeToppings", {
+                    orderId: result.orderId,
+                    toppings: result.toppings
+                });
+                return removeResult.content[0].text;
+            } catch (error) {
+                console.error("Failed to remove toppings:", error);
                 throw error;
             }
         } else {

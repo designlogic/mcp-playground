@@ -20,7 +20,7 @@ async function testPizzaAgent() {
         await agent.initialize();
         
         console.log('Creating and submitting order...');
-        let result = await agent.handleRequest('I want a large pepperoni pizza with extra cheese');
+        let result = await agent.handleRequest('I want a large pepperoni pizza with extra cheese, mushrooms, and olives');
         console.log('Order result:', result);
         
         // Extract order ID from the result
@@ -28,6 +28,11 @@ async function testPizzaAgent() {
         const orderId = orderIdMatch ? orderIdMatch[1] : null;
         
         if (orderId) {
+            // Remove some toppings
+            console.log('\nRemoving toppings...');
+            result = await agent.handleRequest(`Please remove mushrooms and olives from order #${orderId}`);
+            console.log('Remove toppings result:', result);
+            
             // Try to get the pizza delivered with properly formatted address
             console.log('\nRequesting delivery...');
             result = await agent.handleRequest(
