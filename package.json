@@ -13,7 +13,8 @@
     "dev": "tsc -w",
     "example": "tsx src/example.ts",
     "start:api": "node dist/server/api.js",
-    "dev:api": "tsc -w & node dist/server/api.js"
+    "dev:api": "tsc -w & node dist/server/api.js",
+    "start:mcp": "node dist/server/mcpServer.js"
   },
   "files": [
     "dist"
