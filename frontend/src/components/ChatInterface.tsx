@@ -139,7 +139,6 @@ export const ChatInterface = () => {
                         </form>
                     </Box>
                 </Box>
-                <Text mt={4} textAlign="center">hello</Text>
             </Container>
         </>
     );
