@@ -52,4 +52,11 @@ export const startServer = async () => {
             resolve();
         });
     });
-}; 
+};
+
+// Start the server if this file is run directly
+if (import.meta.url === new URL(import.meta.url).href) {
+    app.listen(PORT, () => {
+        console.log(`API server running on port ${PORT}`);
+    });
+} 

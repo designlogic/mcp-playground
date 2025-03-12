@@ -2,6 +2,7 @@ const API_URL = 'http://localhost:3001/api';
 
 export const sendMessage = async (message: string): Promise<string> => {
     try {
+        console.log('Sending message:', message);
         const response = await fetch(`${API_URL}/chat`, {
             method: 'POST',
             headers: {
