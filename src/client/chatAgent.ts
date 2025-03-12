@@ -1,10 +1,12 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import { BufferMemory } from "langchain/memory";
+import { BaseChatMessageHistory } from "@langchain/core/chat_history";
 
 export class ChatAgent {
     private model: ChatOpenAI;
     private systemPrompt: string;
-    private messageHistory: BaseMessage[] = [];
+    private memory: BufferMemory;
 
     constructor(apiKey: string) {
         this.model = new ChatOpenAI({
@@ -28,14 +30,27 @@ Remember to:
 - Maintain a natural conversational flow
 - Avoid being overly formal
 - Reference previous parts of the conversation when relevant`;
+
+        this.memory = new BufferMemory({
+            memoryKey: "chat_history",
+            returnMessages: true,
+            inputKey: "input",
+            outputKey: "output",
+            humanPrefix: "Human",
+            aiPrefix: "Assistant"
+        });
     }
 
     async chat(message: string): Promise<string> {
         try {
+            // Get chat history
+            const memoryVariables = await this.memory.loadMemoryVariables({});
+            const chatHistory = memoryVariables.chat_history || [];
+
             // Construct messages array with system message and history
             const messages = [
                 new SystemMessage(this.systemPrompt),
-                ...this.messageHistory.slice(-10), // Keep last 5 exchanges (10 messages)
+                ...chatHistory,
                 new HumanMessage(message)
             ];
 
@@ -43,14 +58,11 @@ Remember to:
             const response = await this.model.invoke(messages);
             const responseContent = response.content as string;
 
-            // Save messages to history
-            this.messageHistory.push(new HumanMessage(message));
-            this.messageHistory.push(new AIMessage(responseContent));
-
-            // Trim history if it gets too long
-            if (this.messageHistory.length > 20) {
-                this.messageHistory = this.messageHistory.slice(-20);
-            }
+            // Save the interaction to memory
+            await this.memory.saveContext(
+                { input: message },
+                { output: responseContent }
+            );
 
             return responseContent;
         } catch (error) {
