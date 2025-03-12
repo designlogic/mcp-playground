@@ -1,6 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatMessageHistory } from "@langchain/community/stores/message/in_memory";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
 
 export class ChatAgent {
@@ -9,9 +9,10 @@ export class ChatAgent {
     private chain: any;
 
     constructor() {
+        // Initialize the Chat model using your API key from the .env file
         this.model = new ChatOpenAI({
             openAIApiKey: process.env.OPENAI_API_KEY,
-            temperature: 0.7,
+            temperature: 0, // Using 0 for more deterministic responses
         });
 
         this.messageHistory = new ChatMessageHistory();
@@ -35,7 +36,7 @@ export class ChatAgent {
             // Add the user's message to history
             await this.messageHistory.addMessage(new HumanMessage(input));
 
-            // Get the response
+            // Get the response using the chain
             const response = await this.chain.invoke({
                 chat_history: await this.messageHistory.getMessages(),
                 input,
