@@ -1,6 +1,6 @@
-import { startMCPServer } from './mcpServer.js';
+import { startServer } from './api.js';
 
-startMCPServer().catch((error: Error) => {
-    console.error('Error starting MCP server:', error);
+startServer().catch((error: Error) => {
+    console.error('Error starting API server:', error);
     process.exit(1);
 }); 

@@ -23,6 +23,8 @@ export interface MCPToolDefinition<T> {
 
 export class MCPClient {
     private serverProcess?: ChildProcess;
+    private responseBuffer: string = '';
+    private responseResolve?: (value: MCPToolResponse) => void;
 
     constructor() {}
 
@@ -34,7 +36,9 @@ export class MCPClient {
 
         // Handle server output
         this.serverProcess.stdout?.on('data', (data) => {
-            console.log('Server output:', data.toString());
+            const output = data.toString();
+            console.log('Server output:', output);
+            this.handleServerOutput(output);
         });
 
         this.serverProcess.stderr?.on('data', (data) => {
@@ -42,15 +46,35 @@ export class MCPClient {
         });
 
         // Wait for server to start
-        await new Promise((resolve) => {
+        await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new Error('Server startup timeout'));
+            }, 10000);
+
             const handler = (data: Buffer) => {
-                if (data.toString().includes('Server started with tools:')) {
+                const output = data.toString();
+                if (output.includes('Server started with tools:')) {
+                    clearTimeout(timeout);
                     this.serverProcess?.stderr?.removeListener('data', handler);
-                    resolve(undefined);
+                    resolve();
                 }
             };
             this.serverProcess?.stderr?.on('data', handler);
         });
+    }
+
+    private handleServerOutput(output: string) {
+        this.responseBuffer += output;
+        try {
+            const response = JSON.parse(this.responseBuffer);
+            if (this.responseResolve) {
+                this.responseResolve(response);
+                this.responseResolve = undefined;
+            }
+            this.responseBuffer = '';
+        } catch (error) {
+            // Not a complete JSON response yet, keep buffering
+        }
     }
 
     async disconnect(): Promise<void> {
@@ -60,10 +84,14 @@ export class MCPClient {
     }
 
     async listTools(): Promise<MCPTool[]> {
-        // Now we'll actually get the tools from the server
         const response = await this.invokeTool('_list_tools', {});
-        const tools = JSON.parse(response.content[0].text);
-        return tools;
+        try {
+            const tools = JSON.parse(response.content[0].text);
+            return tools;
+        } catch (error) {
+            console.error('Error parsing tools list:', error);
+            throw error;
+        }
     }
 
     async invokeTool(toolName: string, params: Record<string, any>): Promise<MCPToolResponse> {
@@ -71,24 +99,24 @@ export class MCPClient {
             throw new Error("Not connected to server");
         }
 
-        // Send command to server
-        const command = JSON.stringify({ tool: toolName, params });
-        this.serverProcess.stdin?.write(command + '\n');
+        return new Promise<MCPToolResponse>((resolve, reject) => {
+            // Set up response handler
+            this.responseResolve = resolve;
 
-        // Wait for response
-        return new Promise((resolve) => {
-            const handler = (data: Buffer) => {
-                try {
-                    const response = JSON.parse(data.toString());
-                    this.serverProcess?.stdout?.removeListener('data', handler);
-                    resolve(response);
-                } catch (error) {
-                    // If it's not JSON, it's probably debug output
-                    console.log('Debug output:', data.toString());
+            // Clear response buffer
+            this.responseBuffer = '';
+
+            // Send command to server
+            const command = JSON.stringify({ tool: toolName, params });
+            this.serverProcess?.stdin?.write(command + '\n');
+
+            // Set timeout
+            setTimeout(() => {
+                if (this.responseResolve) {
+                    this.responseResolve = undefined;
+                    reject(new Error(`Tool invocation timeout: ${toolName}`));
                 }
-            };
-
-            this.serverProcess?.stdout?.on('data', handler);
+            }, 10000);
         });
     }
 }
@@ -114,7 +142,13 @@ export class MCPServer {
             const tool = this.tools.get(command.tool);
             
             if (!tool) {
-                console.error(`Tool ${command.tool} not found`);
+                const response: MCPToolResponse = {
+                    content: [{
+                        type: 'text',
+                        text: `Error: Tool ${command.tool} not found`
+                    }]
+                };
+                console.log(JSON.stringify(response));
                 return;
             }
 
@@ -146,6 +180,13 @@ export class MCPServer {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Invalid command format';
             console.error('Invalid command format:', errorMessage);
+            const response: MCPToolResponse = {
+                content: [{
+                    type: 'text',
+                    text: `Error: ${errorMessage}`
+                }]
+            };
+            console.log(JSON.stringify(response));
         }
     }
 
