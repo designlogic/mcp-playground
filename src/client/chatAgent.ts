@@ -1,11 +1,11 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { BufferMemory } from "@langchain/community/memory/buffer";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import { BufferWindowMemory } from "langchain/memory";
 
 export class ChatAgent {
     private model: ChatOpenAI;
     private systemPrompt: string;
-    private memory: BufferMemory;
+    private memory: BufferWindowMemory;
 
     constructor(apiKey: string) {
         this.model = new ChatOpenAI({
@@ -30,11 +30,12 @@ Remember to:
 - Avoid being overly formal
 - Reference previous parts of the conversation when relevant`;
 
-        this.memory = new BufferMemory({
+        this.memory = new BufferWindowMemory({
             returnMessages: true,
             memoryKey: "chat_history",
             inputKey: "input",
             outputKey: "output",
+            k: 5 // Remember last 5 interactions
         });
     }
 
