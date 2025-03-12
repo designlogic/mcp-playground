@@ -1,12 +1,8 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from 'zod';
+import { MCPServer, MCPToolDefinition } from "../types/mcp.js";
 
-// Create server instance with metadata
-const server = new McpServer({
-    name: "pizza",
-    version: "1.0.0",
-});
+// Create server instance
+const server = new MCPServer();
 
 // Helper function to format timestamps
 function getTimestamp(): string {
@@ -14,7 +10,7 @@ function getTimestamp(): string {
 }
 
 // Helper function to log MCP interactions
-function logMCPInteraction(tool: string, params: any, result: any) {
+function logMCPInteraction(tool: string, params: any, result: any): void {
     console.error('\n=== MCP Interaction Log ===');
     console.error(`Timestamp: ${getTimestamp()}`);
     console.error(`Tool: ${tool}`);
@@ -33,11 +29,10 @@ const addressSchema = z.object({
 });
 
 // Register tools
-server.tool(
-    "_list_tools",
-    "List all available tools",
-    {},
-    async () => {
+const listToolsDefinition: MCPToolDefinition<{}> = {
+    description: 'List all available tools',
+    parameters: z.object({}),
+    handler: async () => {
         try {
             const tools = [
                 {
@@ -53,6 +48,14 @@ server.tool(
                 {
                     name: 'addToppings',
                     description: 'Add toppings to an existing pizza order',
+                    parameters: {
+                        orderId: { type: 'string' },
+                        toppings: { type: 'array', items: { type: 'string' } }
+                    }
+                },
+                {
+                    name: 'removeToppings',
+                    description: 'Remove toppings from an existing pizza order',
                     parameters: {
                         orderId: { type: 'string' },
                         toppings: { type: 'array', items: { type: 'string' } }
@@ -78,70 +81,103 @@ server.tool(
                 }
             ];
             logMCPInteraction('_list_tools', {}, tools);
-            return {
-                content: [{ type: "text", text: JSON.stringify(tools, null, 2) }]
-            };
+            return tools;
         } catch (error) {
             console.error('Error in _list_tools:', error);
             throw error;
         }
     }
-);
+};
 
-server.tool(
-    "startNewPizzaOrder",
-    "Start a new pizza order with basic details",
-    {
+interface PizzaOrderParams {
+    size: 'small' | 'medium' | 'large';
+    crust: 'thin' | 'thick' | 'stuffed' | 'gluten-free';
+    sauce: 'tomato' | 'bbq' | 'alfredo';
+    toppings?: string[];
+}
+
+const startOrderDefinition: MCPToolDefinition<PizzaOrderParams> = {
+    description: 'Start a new pizza order with basic details',
+    parameters: z.object({
         size: z.enum(['small', 'medium', 'large']),
         crust: z.enum(['thin', 'thick', 'stuffed', 'gluten-free']),
         sauce: z.enum(['tomato', 'bbq', 'alfredo']),
         toppings: z.array(z.string()).optional()
-    },
-    async (params) => {
+    }),
+    handler: async (params) => {
         try {
             const orderId = Math.random().toString(36).substring(7);
             const message = `Started new pizza order #${orderId} with size: ${params.size}, crust: ${params.crust}, sauce: ${params.sauce}`;
             logMCPInteraction('startNewPizzaOrder', params, { orderId, message });
-            return {
-                content: [{ type: "text", text: message }]
-            };
+            return { orderId, message };
         } catch (error) {
             console.error('Error in startNewPizzaOrder:', error);
             throw error;
         }
     }
-);
+};
 
-server.tool(
-    "addToppings",
-    "Add toppings to an existing pizza order",
-    {
+interface ToppingsParams {
+    orderId: string;
+    toppings: string[];
+}
+
+const addToppingsDefinition: MCPToolDefinition<ToppingsParams> = {
+    description: 'Add toppings to an existing pizza order',
+    parameters: z.object({
         orderId: z.string(),
         toppings: z.array(z.string())
-    },
-    async (params) => {
+    }),
+    handler: async (params) => {
         try {
             const message = `Added toppings ${params.toppings.join(', ')} to order #${params.orderId}`;
             logMCPInteraction('addToppings', params, { message });
-            return {
-                content: [{ type: "text", text: message }]
-            };
+            return { message };
         } catch (error) {
             console.error('Error in addToppings:', error);
             throw error;
         }
     }
-);
+};
 
-server.tool(
-    "deliverOrder",
-    "Request delivery for an existing pizza order",
-    {
+const removeToppingsDefinition: MCPToolDefinition<ToppingsParams> = {
+    description: 'Remove toppings from an existing pizza order',
+    parameters: z.object({
+        orderId: z.string(),
+        toppings: z.array(z.string())
+    }),
+    handler: async (params) => {
+        try {
+            const message = `Removed toppings ${params.toppings.join(', ')} from order #${params.orderId}`;
+            logMCPInteraction('removeToppings', params, { message });
+            return { message };
+        } catch (error) {
+            console.error('Error in removeToppings:', error);
+            throw error;
+        }
+    }
+};
+
+interface DeliveryParams {
+    orderId: string;
+    address: {
+        street: string;
+        unit?: string;
+        city: string;
+        state: string;
+        zipCode: string;
+    };
+    instructions?: string;
+}
+
+const deliverOrderDefinition: MCPToolDefinition<DeliveryParams> = {
+    description: 'Request delivery for an existing pizza order',
+    parameters: z.object({
         orderId: z.string(),
         address: addressSchema,
         instructions: z.string().optional()
-    },
-    async (params) => {
+    }),
+    handler: async (params) => {
         try {
             const fullAddress = [
                 params.address.street,
@@ -151,24 +187,28 @@ server.tool(
             
             const message = `Delivery scheduled for order #${params.orderId} to: ${fullAddress}${params.instructions ? `\nDelivery instructions: ${params.instructions}` : ''}`;
             logMCPInteraction('deliverOrder', params, { message });
-            return {
-                content: [{ type: "text", text: message }]
-            };
+            return { message };
         } catch (error) {
             console.error('Error in deliverOrder:', error);
             throw error;
         }
     }
-);
+};
+
+// Register all tools
+server.registerTool('_list_tools', listToolsDefinition);
+server.registerTool('startNewPizzaOrder', startOrderDefinition);
+server.registerTool('addToppings', addToppingsDefinition);
+server.registerTool('removeToppings', removeToppingsDefinition);
+server.registerTool('deliverOrder', deliverOrderDefinition);
 
 // Start the server
-export async function main() {
+export async function startMCPServer() {
     try {
-        const transport = new StdioServerTransport();
-        await server.connect(transport);
+        await server.start();
         console.error("Pizza MCP Server running on stdio");
     } catch (error) {
-        console.error("Fatal error in main():", error);
+        console.error("Fatal error in startMCPServer():", error);
         process.exit(1);
     }
 }
