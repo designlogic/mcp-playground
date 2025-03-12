@@ -9,7 +9,21 @@ const PizzaOrderSchema = z.object({
     toppings: z.array(z.string()).optional(),
 });
 
+// Add delivery address schema
+const DeliverySchema = z.object({
+    orderId: z.string(),
+    address: z.object({
+        street: z.string(),
+        unit: z.string().optional(),
+        city: z.string(),
+        state: z.string(),
+        zipCode: z.string()
+    }),
+    instructions: z.string().optional()
+});
+
 type PizzaOrder = z.infer<typeof PizzaOrderSchema>;
+type DeliveryRequest = z.infer<typeof DeliverySchema>;
 
 export async function startMCPServer() {
     const server = new MCPServer();
@@ -36,6 +50,24 @@ export async function startMCPServer() {
                     parameters: {
                         orderId: { type: 'string' },
                         toppings: { type: 'array', items: { type: 'string' } }
+                    }
+                },
+                {
+                    name: 'deliverOrder',
+                    description: 'Request delivery for an existing pizza order',
+                    parameters: {
+                        orderId: { type: 'string' },
+                        address: {
+                            type: 'object',
+                            properties: {
+                                street: { type: 'string' },
+                                unit: { type: 'string', optional: true },
+                                city: { type: 'string' },
+                                state: { type: 'string' },
+                                zipCode: { type: 'string' }
+                            }
+                        },
+                        instructions: { type: 'string', optional: true }
                     }
                 }
             ];
@@ -69,6 +101,22 @@ export async function startMCPServer() {
         handler: async (params: AddToppingsParams) => {
             return {
                 message: `Added toppings ${params.toppings.join(', ')} to order #${params.orderId}`,
+            };
+        },
+    });
+
+    server.registerTool('deliverOrder', {
+        description: 'Request delivery for an existing pizza order',
+        parameters: DeliverySchema,
+        handler: async (params: DeliveryRequest) => {
+            const fullAddress = [
+                params.address.street,
+                params.address.unit,
+                `${params.address.city}, ${params.address.state} ${params.address.zipCode}`
+            ].filter(Boolean).join(', ');
+            
+            return {
+                message: `Delivery scheduled for order #${params.orderId} to: ${fullAddress}${params.instructions ? `\nDelivery instructions: ${params.instructions}` : ''}`
             };
         },
     });

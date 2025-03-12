@@ -37,13 +37,61 @@ export class PizzaAgent {
                     content: `You are a helpful pizza ordering assistant that uses MCP tools. Your job is to:
                         1. Understand the customer's pizza-related request
                         2. Check if the requested action can be performed with available tools
-                        3. If the action cannot be performed, respond with a JSON object: { "error": "Specific reason why the action cannot be performed" }
-                        4. If the action can be performed, respond with a JSON object matching the appropriate tool's parameters
+                        3. For pizza orders:
+                           - ALWAYS respond with a startNewPizzaOrder request first
+                           - Required parameters: size (small/medium/large)
+                           - Default to thin crust and tomato sauce if not specified
+                           - DO NOT include toppings in the initial order
+                           - The order ID will be provided in the response
+                        4. For delivery requests:
+                           - Extract the order ID from the request
+                           - Parse the address into the required format
+                           - Respond with a deliverOrder request containing:
+                             {
+                               "orderId": "the-order-id",
+                               "address": {
+                                 "street": "street-address",
+                                 "unit": "apartment-number" (optional),
+                                 "city": "city-name",
+                                 "state": "state-code",
+                                 "zipCode": "zip-code"
+                               },
+                               "instructions": "delivery-instructions" (optional)
+                             }
+                        5. If an action cannot be performed, respond with a JSON object: { "error": "Specific reason why the action cannot be performed" }
 
                         Available MCP tools:
                         ${toolsDescription}
 
-                        Remember: If a requested action requires a tool that's not available, you MUST respond with an error message explaining why it can't be done.`
+                        Example requests and responses:
+
+                        1. Pizza order (even if toppings are mentioned, only return size/crust/sauce):
+                        User: "I want a large pepperoni pizza with extra cheese"
+                        Response: {
+                            "size": "large",
+                            "crust": "thin",
+                            "sauce": "tomato"
+                        }
+
+                        2. Delivery request:
+                        User: "Deliver order #abc123 to Street: 123 Main St, Unit: 4B, City: San Francisco, State: CA, Zip: 94105"
+                        Response: {
+                            "orderId": "abc123",
+                            "address": {
+                                "street": "123 Main St",
+                                "unit": "4B",
+                                "city": "San Francisco",
+                                "state": "CA",
+                                "zipCode": "94105"
+                            }
+                        }
+
+                        Remember: 
+                        - For pizza orders, ONLY return size/crust/sauce in the initial response
+                        - Toppings will be handled separately by the system
+                        - For delivery requests, make sure to extract and use the existing order ID
+                        - Format addresses exactly as shown in the example
+                        - If a requested action requires a tool that's not available, respond with an error message`
                 },
                 {
                     role: "user",
@@ -66,14 +114,51 @@ export class PizzaAgent {
             return `Cannot process request: ${result.error}`;
         }
 
-        // If no error, treat it as an order
-        return this.submitOrder(result);
+        // Handle the order based on the type of request
+        if (result.size) {
+            // This is a new order request
+            const orderResult = await this.submitOrder(result);
+            
+            // Check if we need to add toppings
+            if (userRequest.toLowerCase().includes('pepperoni') || userRequest.toLowerCase().includes('cheese')) {
+                const orderIdMatch = orderResult.match(/order #([a-z0-9]+)/i);
+                if (orderIdMatch) {
+                    const orderId = orderIdMatch[1];
+                    const toppings = [];
+                    if (userRequest.toLowerCase().includes('pepperoni')) toppings.push('pepperoni');
+                    if (userRequest.toLowerCase().includes('cheese')) toppings.push('extra cheese');
+                    
+                    await this.mcpClient.invokeTool("addToppings", {
+                        orderId,
+                        toppings
+                    });
+                }
+            }
+            
+            return orderResult;
+        } else if (result.orderId && result.address) {
+            // This is a delivery request
+            try {
+                const deliveryResult = await this.mcpClient.invokeTool("deliverOrder", result);
+                return deliveryResult.content[0].text;
+            } catch (error) {
+                console.error("Failed to submit delivery request:", error);
+                throw error;
+            }
+        } else {
+            return `Cannot process request: Invalid response format from AI`;
+        }
     }
 
     private async submitOrder(order: any): Promise<string> {
         try {
-            // Start a new order using the server's tool name
-            const startResult = await this.mcpClient.invokeTool("startNewPizzaOrder", order);
+            // Start a new order
+            const startResult = await this.mcpClient.invokeTool("startNewPizzaOrder", {
+                size: order.size,
+                crust: order.crust || "thin", // Default to thin crust if not specified
+                sauce: order.sauce || "tomato", // Default to tomato sauce if not specified
+                toppings: order.toppings
+            });
 
             // Extract order ID from the response
             const result = JSON.parse(startResult.content[0].text);
@@ -87,7 +172,7 @@ export class PizzaAgent {
                 });
             }
 
-            return `Order submitted successfully: ${JSON.stringify(startResult, null, 2)}`;
+            return startResult.content[0].text;
         } catch (error) {
             console.error("Failed to submit order:", error);
             throw error;

@@ -23,10 +23,26 @@ async function testPizzaAgent() {
         let result = await agent.handleRequest('I want a large pepperoni pizza with extra cheese');
         console.log('Order result:', result);
         
-        // Try to get the pizza delivered
-        console.log('\nRequesting delivery...');
-        result = await agent.handleRequest('Please deliver my pizza to 123 Main St, Apt 4B');
-        console.log('Delivery result:', result);
+        // Extract order ID from the result
+        const orderIdMatch = result.match(/order #([a-z0-9]+)/i);
+        const orderId = orderIdMatch ? orderIdMatch[1] : null;
+        
+        if (orderId) {
+            // Try to get the pizza delivered with properly formatted address
+            console.log('\nRequesting delivery...');
+            result = await agent.handleRequest(
+                `Please deliver order #${orderId} to this address:
+                Street: 123 Main Street
+                Unit: Apt 4B
+                City: San Francisco
+                State: CA
+                Zip: 94105
+                Instructions: Ring doorbell twice`
+            );
+            console.log('Delivery result:', result);
+        } else {
+            console.log('Could not extract order ID from result');
+        }
         
         await agent.disconnect();
     } catch (error) {
