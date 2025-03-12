@@ -24,6 +24,7 @@ export const ChatInterface = () => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const toast = useToast();
 
     const scrollToBottom = () => {
@@ -33,6 +34,11 @@ export const ChatInterface = () => {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // Focus input on initial load
+    useEffect(() => {
+        inputRef.current?.focus();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -59,6 +65,8 @@ export const ChatInterface = () => {
             });
         } finally {
             setIsLoading(false);
+            // Focus input after response is received
+            inputRef.current?.focus();
         }
     };
 
@@ -90,6 +98,7 @@ export const ChatInterface = () => {
                     <form onSubmit={handleSubmit}>
                         <Flex gap={2}>
                             <Input
+                                ref={inputRef}
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Type your message..."
