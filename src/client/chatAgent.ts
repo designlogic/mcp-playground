@@ -1,11 +1,10 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
-import { BufferWindowMemory } from "langchain/memory";
+import { HumanMessage, SystemMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
 
 export class ChatAgent {
     private model: ChatOpenAI;
     private systemPrompt: string;
-    private memory: BufferWindowMemory;
+    private messageHistory: BaseMessage[] = [];
 
     constructor(apiKey: string) {
         this.model = new ChatOpenAI({
@@ -29,26 +28,14 @@ Remember to:
 - Maintain a natural conversational flow
 - Avoid being overly formal
 - Reference previous parts of the conversation when relevant`;
-
-        this.memory = new BufferWindowMemory({
-            returnMessages: true,
-            memoryKey: "chat_history",
-            inputKey: "input",
-            outputKey: "output",
-            k: 5 // Remember last 5 interactions
-        });
     }
 
     async chat(message: string): Promise<string> {
         try {
-            // Get chat history first
-            const memoryResult = await this.memory.loadMemoryVariables({});
-            const chatHistory = memoryResult.chat_history || [];
-
             // Construct messages array with system message and history
             const messages = [
                 new SystemMessage(this.systemPrompt),
-                ...chatHistory,
+                ...this.messageHistory.slice(-10), // Keep last 5 exchanges (10 messages)
                 new HumanMessage(message)
             ];
 
@@ -56,11 +43,14 @@ Remember to:
             const response = await this.model.invoke(messages);
             const responseContent = response.content as string;
 
-            // Save both the human message and AI response to memory
-            await this.memory.saveContext(
-                { input: message },
-                { output: responseContent }
-            );
+            // Save messages to history
+            this.messageHistory.push(new HumanMessage(message));
+            this.messageHistory.push(new AIMessage(responseContent));
+
+            // Trim history if it gets too long
+            if (this.messageHistory.length > 20) {
+                this.messageHistory = this.messageHistory.slice(-20);
+            }
 
             return responseContent;
         } catch (error) {
