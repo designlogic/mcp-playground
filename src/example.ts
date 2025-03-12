@@ -18,53 +18,92 @@ function ask(question: string): Promise<string> {
     });
 }
 
+// Parse user input to determine their intent
+function parseRequest(input: string): { command: 'joke' | 'exit' | 'help' | 'unknown', category?: string } {
+    input = input.toLowerCase().trim();
+
+    // Check for exit commands
+    if (input === 'exit' || input === 'quit' || input === 'bye' || input === 'goodbye') {
+        return { command: 'exit' };
+    }
+
+    // Check for help commands
+    if (input === 'help' || input === '?' || input === 'commands') {
+        return { command: 'help' };
+    }
+
+    // Check for specific joke categories
+    const categoryMatches = input.match(/(?:tell me |give me |i want )?(?:a |an )?(.*?) joke/i);
+    if (categoryMatches) {
+        const category = categoryMatches[1].trim();
+        return { 
+            command: 'joke',
+            // If they just said "tell me a joke", don't specify a category
+            category: category === 'a' || category === '' ? undefined : category
+        };
+    }
+
+    // If we can't parse the intent, return unknown
+    return { command: 'unknown' };
+}
+
+async function showHelp() {
+    console.log("\n🤖 I understand commands like:");
+    console.log("  • tell me a joke");
+    console.log("  • tell me a dad joke");
+    console.log("  • give me a pun");
+    console.log("  • knock knock joke");
+    console.log("  • exit/quit");
+    console.log("  • help\n");
+}
+
 async function main() {
     // Create a new joke agent with your OpenAI API key
     const jokeAgent = new JokeAgent(process.env.OPENAI_API_KEY!);
 
-    console.log("\nWelcome to the AI Joke Generator! 😄\n");
+    console.log("\n👋 Hi! I'm your AI Joke Buddy! Ask me to tell you a joke!\n");
+    console.log("Type 'help' to see what I can do.\n");
     
     try {
         while (true) {
-            console.log("Options:");
-            console.log("1. Tell me a random joke");
-            console.log("2. Tell me a specific type of joke");
-            console.log("3. Exit");
-            
-            const choice = await ask("\nWhat would you like to do? (1-3): ");
+            const input = await ask("You: ");
+            const request = parseRequest(input);
 
-            if (choice === "3") {
-                console.log("\nThanks for laughing with me! Goodbye! 👋\n");
-                break;
-            }
+            switch (request.command) {
+                case 'exit':
+                    console.log("\n👋 Thanks for laughing with me! Goodbye!\n");
+                    return;
 
-            let joke;
-            if (choice === "1") {
-                console.log("\nGenerating a random joke...\n");
-                joke = await jokeAgent.tellJoke();
-            } else if (choice === "2") {
-                const category = await ask("\nWhat type of joke would you like? (e.g., 'dad joke', 'pun', 'knock-knock'): ");
-                console.log(`\nGenerating a ${category}...\n`);
-                joke = await jokeAgent.tellJoke(category);
-            } else {
-                console.log("\nInvalid choice. Please select 1, 2, or 3.\n");
-                continue;
-            }
+                case 'help':
+                    await showHelp();
+                    break;
 
-            if (joke) {
-                console.log("🎭 Setup:", joke.setup);
-                console.log("😄 Punchline:", joke.punchline);
-                console.log("📝 Category:", joke.category);
-                console.log(); // Empty line for spacing
-            }
+                case 'joke':
+                    if (request.category) {
+                        console.log(`\n🎯 Generating a ${request.category} joke...\n`);
+                    } else {
+                        console.log("\n🎲 Generating a random joke...\n");
+                    }
 
-            // Optional: Ask if they want to rate the joke
-            const wantToRate = await ask("Would you like to rate this joke? (y/n): ");
-            if (wantToRate.toLowerCase() === 'y') {
-                const rating = await ask("Rate the joke from 1-10: ");
-                console.log(`Thanks for rating! You gave it a ${rating}/10\n`);
-            } else {
-                console.log(); // Empty line for spacing
+                    const joke = await jokeAgent.tellJoke(request.category);
+                    console.log("🎭 Setup:", joke.setup);
+                    console.log("😄 Punchline:", joke.punchline);
+                    console.log("📝 Category:", joke.category);
+                    console.log();
+
+                    // Optional: Ask if they want to rate the joke
+                    const wantToRate = await ask("Would you like to rate this joke? (y/n): ");
+                    if (wantToRate.toLowerCase() === 'y') {
+                        const rating = await ask("Rate the joke from 1-10: ");
+                        console.log(`Thanks for rating! You gave it a ${rating}/10\n`);
+                    } else {
+                        console.log();
+                    }
+                    break;
+
+                case 'unknown':
+                    console.log("\n❓ I'm not sure what you want. Try asking me to tell you a joke, or type 'help' to see what I can do.\n");
+                    break;
             }
         }
     } catch (error) {
