@@ -1,12 +1,6 @@
-import { startMCPServer } from './mcpServer.js';
+import { main } from './mcpServer.js';
 
-async function main() {
-    try {
-        await startMCPServer();
-    } catch (error) {
-        console.error('Failed to start MCP server:', error);
-        process.exit(1);
-    }
-}
-
-main(); 
+main().catch(error => {
+    console.error('Fatal error:', error);
+    process.exit(1);
+}); 
