@@ -1,8 +1,26 @@
-import { MCPServer } from '../types/mcp.js';
+import { MCPServer, MCPToolDefinition } from '../types/mcp.js';
 import { createOrder, getOrderStatus, addToppings, removeToppings } from '../tools/pizzaTools.js';
+import { z } from 'zod';
 
 // Create and configure the MCP server
 const server = new MCPServer();
+
+// Create the _list_tools tool
+const listTools: MCPToolDefinition<{}> = {
+    description: "List all available tools",
+    parameters: z.object({}),
+    handler: async () => {
+        const tools = Array.from(server.getTools().entries()).map(([name, tool]) => ({
+            name,
+            description: tool.description,
+            parameters: tool.parameters,
+        }));
+        return tools;
+    },
+};
+
+// Register system tools
+server.registerTool('_list_tools', listTools);
 
 // Register pizza ordering tools
 server.registerTool('createOrder', createOrder);

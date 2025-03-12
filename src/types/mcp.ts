@@ -127,6 +127,10 @@ export class MCPServer {
         this.tools.set(name, definition);
     }
 
+    getTools(): Map<string, MCPToolDefinition<any>> {
+        return this.tools;
+    }
+
     private async handleCommand(line: string, socket: Socket) {
         try {
             const command = JSON.parse(line);
