@@ -1,5 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai";
-import { BufferMemory } from "langchain/memory";
+import { BufferMemory } from "@langchain/community/memory/buffer";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 
 export class ChatAgent {
