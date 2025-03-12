@@ -15,6 +15,10 @@ const port = process.env.PORT || 3001;
 // Initialize chat agent
 const chatAgent = new ChatAgent();
 
+// Connect to MCP server
+console.log('Connecting to MCP server...');
+await chatAgent.connect();
+
 // Chat endpoint
 app.post('/api/chat', express.json(), async (req: Request, res: Response): Promise<void> => {
     try {
@@ -43,16 +47,13 @@ app.post('/api/clear', express.json(), async (req: Request, res: Response): Prom
     }
 });
 
-export const startServer = async () => {
-    return new Promise<void>((resolve) => {
-        app.listen(port, () => {
-            console.log(`Server is running on port ${port}`);
-            resolve();
-        });
-    });
-};
+// Cleanup on server shutdown
+process.on('SIGINT', async () => {
+    console.log('Shutting down server...');
+    await chatAgent.disconnect();
+    process.exit(0);
+});
 
-// Start the server if this file is run directly
-if (import.meta.url === new URL(import.meta.url).href) {
-    startServer();
-} 
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+}); 
