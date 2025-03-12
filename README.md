@@ -1,74 +1,62 @@
-# MCP Server Playground
+# AI Joke Agent
 
-A simple Model Context Protocol (MCP) server implementation that provides a calculator tool.
+A simple AI-powered joke-telling agent built with LangChain.js and OpenAI's GPT-3.5.
 
 ## Features
 
-- Basic arithmetic operations (add, subtract, multiply, divide)
-- MCP-compliant server implementation
-- TypeScript/Node.js based
-
-## Prerequisites
-
-- Node.js (v16 or higher)
-- npm (comes with Node.js)
+- Tells random, clean jokes
+- Can generate specific types of jokes (e.g., dad jokes, puns)
+- Structured output with setup, punchline, and category
+- Clean and family-friendly content
 
 ## Setup
 
-1. Clone the repository:
-```bash
-git clone https://github.com/designlogic/mcp-playground.git
-cd mcp-playground
-```
-
-2. Install dependencies:
+1. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Build the project:
-```bash
-npm run build
+2. Create a `.env` file in the root directory and add your OpenAI API key:
+```
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-## Running the Server
-
-Start the server in development mode:
+3. Run the example:
 ```bash
-npm run dev
+npx ts-node src/example.ts
 ```
 
-Or build and run in production mode:
-```bash
-npm run build
-npm start
+## Usage
+
+```typescript
+import { JokeAgent } from './jokeAgent';
+
+// Create a new joke agent
+const jokeAgent = new JokeAgent(process.env.OPENAI_API_KEY!);
+
+// Get a random joke
+const randomJoke = await jokeAgent.tellJoke();
+console.log(randomJoke);
+
+// Get a specific type of joke
+const dadJoke = await jokeAgent.tellJoke("dad joke");
+console.log(dadJoke);
 ```
 
-## Available Tools
+## Response Format
 
-### Calculator Tool
+The jokes are returned in the following format:
 
-The server provides a calculator tool with the following operations:
-- Addition
-- Subtraction
-- Multiplication
-- Division
-
-Example usage through MCP client:
-```json
+```typescript
 {
-  "operation": "add",
-  "a": 5,
-  "b": 3
+    setup: string;     // The setup line of the joke
+    punchline: string; // The punchline that makes the joke funny
+    category: string;  // The category or type of joke
 }
 ```
 
-## Development
+## Requirements
 
-- `npm run dev` - Start the server in development mode with hot reload
-- `npm run build` - Build the TypeScript code
-- `npm start` - Run the built code
-
-## License
-
-ISC
+- Node.js 14+
+- OpenAI API key
+- TypeScript

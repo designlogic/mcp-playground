@@ -14,16 +14,23 @@
   "files": [
     "build"
   ],
-  "keywords": ["mcp", "server"],
+  "keywords": [
+    "mcp",
+    "server"
+  ],
   "author": "",
   "license": "ISC",
   "description": "An MCP server implementation",
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "typescript": "^5.7.2",
-    "tsx": "^4.7.1"
+    "tsx": "^4.7.1",
+    "typescript": "^5.7.2"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.4.0"
+    "@langchain/openai": "^0.4.4",
+    "@modelcontextprotocol/sdk": "^1.4.0",
+    "@types/dotenv": "^6.1.1",
+    "dotenv": "^16.4.7",
+    "zod": "^3.24.2"
   }
-} 
+}
