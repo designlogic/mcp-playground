@@ -1,8 +1,11 @@
 import { ChatOpenAI } from "@langchain/openai";
+import { BufferMemory } from "langchain/memory";
+import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 
 export class ChatAgent {
     private model: ChatOpenAI;
     private systemPrompt: string;
+    private memory: BufferMemory;
 
     constructor(apiKey: string) {
         this.model = new ChatOpenAI({
@@ -24,17 +27,44 @@ Remember to:
 - Stay positive and supportive
 - Be curious about the user's interests
 - Maintain a natural conversational flow
-- Avoid being overly formal`;
+- Avoid being overly formal
+- Reference previous parts of the conversation when relevant`;
+
+        this.memory = new BufferMemory({
+            returnMessages: true,
+            memoryKey: "chat_history",
+            inputKey: "input",
+            outputKey: "output",
+        });
     }
 
     async chat(message: string): Promise<string> {
         try {
-            const prompt = `${this.systemPrompt}\n\nHuman: ${message}\n\nAssistant:`;
-            const response = await this.model.predict(prompt);
-            return response;
+            // Get chat history first
+            const memoryResult = await this.memory.loadMemoryVariables({});
+            const chatHistory = memoryResult.chat_history || [];
+
+            // Construct messages array with system message and history
+            const messages = [
+                new SystemMessage(this.systemPrompt),
+                ...chatHistory,
+                new HumanMessage(message)
+            ];
+
+            // Get response from the model
+            const response = await this.model.invoke(messages);
+            const responseContent = response.content as string;
+
+            // Save both the human message and AI response to memory
+            await this.memory.saveContext(
+                { input: message },
+                { output: responseContent }
+            );
+
+            return responseContent;
         } catch (error) {
             console.error("Error in chat:", error);
-            return "I apologize, but I encountered an error. Could you please try again?";
+            throw error; // Let the API handle the error response
         }
     }
 } 
